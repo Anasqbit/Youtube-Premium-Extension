@@ -54,4 +54,4 @@ An Chrome Extension that enhances your YouTube experience by simulating premium 
 ---
 
 ### 👨‍💻 Created By / تم الإنشاء بواسطة
-Made by **Anasqbit**
+Made by  **Anasqbit**
