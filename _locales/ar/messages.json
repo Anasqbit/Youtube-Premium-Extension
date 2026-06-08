@@ -1,0 +1,68 @@
+{
+  "extName": {
+    "message": "يوتيوب بريميوم بلس"
+  },
+  "extDescription": {
+    "message": "محاكي YouTube Premium + إرجاع الكراهيات + متحكم السرعة + محمل الفيديو"
+  },
+  "popupTitle": {
+    "message": "يوتيوب بريميوم"
+  },
+  "statusEnabled": {
+    "message": "الحالة: مُفعّل"
+  },
+  "statusDisabled": {
+    "message": "الحالة: مُعطّل"
+  },
+  "settingsTitle": {
+    "message": "الإعدادات"
+  },
+  "languageLabel": {
+    "message": "اللغة"
+  },
+  "languageEnglish": {
+    "message": "الإنجليزية"
+  },
+  "languageArabic": {
+    "message": "العربية"
+  },
+  "featuresTitle": {
+    "message": "الميزات"
+  },
+  "featurePremiumLogo": {
+    "message": "شعار بريميوم"
+  },
+  "featurePremiumLogoDesc": {
+    "message": "إظهار شعار يوتيوب بريميوم"
+  },
+  "featureReturnDislike": {
+    "message": "إرجاع زر الديسلايك"
+  },
+  "featureReturnDislikeDesc": {
+    "message": "إظهار عدد الديسلايكات على الفيديوهات"
+  },
+  "featureDownloader": {
+    "message": "تحميل الفيديوهات والصوت"
+  },
+  "featureDownloaderDesc": {
+    "message": "تحميل الفيديوهات والصوتيات من يوتيوب"
+  },
+  "featureSpeedController": {
+    "message": "التحكم بالسرعة"
+  },
+  "featureSpeedControllerDesc": {
+    "message": "التحكم بسرعة التشغيل حتى 10x"
+  },
+  "saveButton": {
+    "message": "حفظ"
+  },
+  "savedMessage": {
+    "message": "تم الحفظ بنجاح!"
+  },
+  "openSettings": {
+    "message": "فتح الإعدادات"
+  },
+  "madeBy": {
+    "message": "تم إنشاؤه بـ ❤️ بواسطة Anasqbit"
+  }
+}

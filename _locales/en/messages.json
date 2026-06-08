@@ -1,0 +1,70 @@
+{
+  "extName": {
+    "message": "YouTube Premium Plus",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "YouTube Premium logo + Dislikes + Downloader + Speed Controller",
+    "description": "Extension description"
+  },
+  "popupTitle": {
+    "message": "YouTube Premium"
+  },
+  "statusEnabled": {
+    "message": "Status: Enabled"
+  },
+  "statusDisabled": {
+    "message": "Status: Disabled"
+  },
+  "settingsTitle": {
+    "message": "Settings"
+  },
+  "languageLabel": {
+    "message": "Language"
+  },
+  "languageEnglish": {
+    "message": "English"
+  },
+  "languageArabic": {
+    "message": "Arabic"
+  },
+  "featuresTitle": {
+    "message": "Features"
+  },
+  "featurePremiumLogo": {
+    "message": "Premium Logo"
+  },
+  "featurePremiumLogoDesc": {
+    "message": "Show YouTube Premium logo"
+  },
+  "featureReturnDislike": {
+    "message": "Return Dislike"
+  },
+  "featureReturnDislikeDesc": {
+    "message": "Show dislike count on videos"
+  },
+  "featureDownloader": {
+    "message": "Video & MP3 Downloader"
+  },
+  "featureDownloaderDesc": {
+    "message": "Download videos and audio from YouTube"
+  },
+  "featureSpeedController": {
+    "message": "Speed Controller"
+  },
+  "featureSpeedControllerDesc": {
+    "message": "Control playback speed up to 10x"
+  },
+  "saveButton": {
+    "message": "Save"
+  },
+  "savedMessage": {
+    "message": "Saved successfully!"
+  },
+  "openSettings": {
+    "message": "Open Settings"
+  },
+  "madeBy": {
+    "message": "Made with ❤️ by Anasqbit"
+  }
+}
