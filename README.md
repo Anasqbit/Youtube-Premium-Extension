@@ -1,8 +1,8 @@
 # YouTube Premium Plus | يوتيوب بريميوم بلس
 
-An awesome Chrome Extension that enhances your YouTube experience by simulating premium features, returning dislikes, adding a powerful downloader, and much more!
+An Chrome Extension that enhances your YouTube experience by simulating premium features, returning dislikes, adding a powerful downloader, and much more!
 
-إضافة رائعة لمتصفح كروم تُحسّن تجربتك على منصة يوتيوب من خلال محاكاة ميزات البريميوم، وإعادة زر الديسلايك، وإضافة أداة تحميل قوية، والعديد من الميزات الأخرى!
+إضافة لمتصفح كروم تُحسّن تجربتك على منصة يوتيوب من خلال محاكاة ميزات البريميوم، وإعادة زر الديسلايك، وإضافة أداة تحميل قوية، والعديد من الميزات الأخرى!
 
 ---
 
