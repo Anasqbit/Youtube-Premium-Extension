@@ -4,9 +4,12 @@
         "https://www.myinstants.com/media/sounds/chinese-meme-song.mp3",
         "https://www.myinstants.com/media/sounds/chinese-dream.mp3",
         "https://www.myinstants.com/media/sounds/chinese-rapping-dog.mp3",
-        "https://www.myinstants.com/media/sounds/dexter-meme-26140.mp3",
         "https://www.myinstants.com/media/sounds/hy-zrybh-y-hbyby.mp3",
-        "https://www.myinstants.com/media/sounds/y-yny-lyk-nt-msh-fhm-y-hj.mp3"
+        "https://www.myinstants.com/media/sounds/y-yny-lyk-nt-msh-fhm-y-hj.mp3",
+        "https://www.myinstants.com/media/sounds/dexter-meme.mp3",
+        "https://www.myinstants.com/media/sounds/spiderman-meme-song.mp3",
+        "https://www.myinstants.com/media/sounds/oh-no-no-no-tik-tok-song-sound-effect.mp3",
+        "https://www.myinstants.com/media/sounds/sneaky-golem.mp3"
     ];
 
     const src = audioSources[Math.floor(Math.random() * audioSources.length)];
