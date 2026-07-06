@@ -4,7 +4,7 @@ An Chrome Extension that enhances your YouTube experience by simulating premium 
 
 إضافة لمتصفح كروم تُحسّن تجربتك على منصة يوتيوب من خلال محاكاة ميزات البريميوم، وإعادة زر الديسلايك، وإضافة أداة تحميل قوية، والعديد من الميزات الأخرى!
 
----
+----
 
 ## 🌍 Language / اللغة
 
