@@ -11,5 +11,4 @@ git_repo_updater.py
 sound add.py
 # استبعاد أي ملف نصي يحتوي على معلومات حساسة
 discord.txt
-
 *.log
