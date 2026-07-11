@@ -6,6 +6,7 @@
         if (!config.extensionEnabled || !config.feature_downloader) return;
         console.log('[YT Premium+] Video Downloader active');
 
+        // ════════ bgFetch: استبدال GM_xmlhttpRequest ════════
         function bgFetch(opts) {
             return new Promise((resolve) => {
                 const url = opts.url;
@@ -15,6 +16,7 @@
                 };
                 if (opts.data) fetchOptions.body = opts.data;
 
+                // ✅ إصلاح #3: timeout حقيقي باستخدام Promise.race
                 const timeoutMs = opts.timeout || 25000;
                 const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject({ timeout: true }), timeoutMs)
@@ -112,6 +114,7 @@
                 : `https://www.youtube.com/watch?v=${id}`;
         }
 
+        // ✅ إصلاح #2: أضفنا buildFileName و extractQualityLabel من الكود الأصلي
         function buildFileName(rawTitle, fmt) {
             let title = rawTitle || 'video';
             title = title.replace(/\s*[-–|]\s*YouTube\s*$/i, '').trim();
@@ -142,6 +145,7 @@
             return asr >= 1000 ? `${(asr / 1000).toFixed(0)}kHz` : `${asr}Hz`;
         }
 
+        // ✅ إصلاح #1: fixJson الصحيحة من الكود الأصلي — كل حرف بـ replace منفصل
         function fixJson(str) {
             return str
                 .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
@@ -155,6 +159,7 @@
                 .replace(/:\s*a\b/g,  ':true');
         }
 
+        // ✅ إصلاح #4: أضفنا التحقق من عدم وجود formats قبل إرسال النتيجة
         function scrapeFormats(videoId, cb) {
             GM_xmlhttpRequest({
                 method  : 'GET',
@@ -177,6 +182,7 @@
                     const dlMatch    = clean.match(/download:(\[.*?\]),raw_video/);
                     const audioMatch = clean.match(/raw_audio:(\[.*?\])\}/);
 
+                    // ✅ إصلاح #4: لو ما لقى أي format يرجع error فوراً
                     if (!dlMatch && !audioMatch) { cb('No formats found'); return; }
 
                     const groups = [];
@@ -213,6 +219,7 @@
                         } catch (e) { console.warn('[YTDl] video parse:', e); }
                     }
 
+                    // ✅ إصلاح #4: لو بعد الـ parse ما طلع شي يرجع error
                     if (!groups.length) { cb('Could not parse formats'); return; }
 
                     cache = { videoId, groups, title };
@@ -223,12 +230,10 @@
             });
         }
 
-        // ══════════════════════════════════════════════════
-        // Style — بستايل يوتيوب (7.2.0)
-        // ══════════════════════════════════════════════════
         function injectVidStyle() {
             if (document.getElementById(VID_IDS.STYLE)) return;
             const dark  = isDark();
+            const bg    = dark ? '#272727' : '#f2f2f2';
             const hover = dark ? '#3f3f3f' : '#e5e5e5';
             const color = dark ? '#fff'    : '#030303';
             const popBg = dark ? '#1e1e1e' : '#fff';
@@ -239,6 +244,22 @@
             s.id = VID_IDS.STYLE;
             s.textContent = `
 #${VID_IDS.WRAPPER}{display:inline-flex;align-items:center;gap:6px;margin:0 8px;}
+.yt-dl-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    height:36px;padding:0 14px;border:none;border-radius:18px;
+    background:${bg};color:${color};
+    font:500 14px/1 "Roboto","Arial",sans-serif;
+    cursor:pointer;white-space:nowrap;
+    transition:background .15s;box-sizing:border-box;
+}
+.yt-dl-btn:hover:not(:disabled){background:${hover};}
+.yt-dl-btn:disabled{opacity:.5;cursor:not-allowed;}
+#${VID_IDS.FMT_BTN}{min-width:155px;max-width:220px;justify-content:space-between;padding:0 10px 0 14px;}
+#${VID_IDS.FMT_BTN} .arr{
+    width:0;height:0;flex-shrink:0;
+    border-left:5px solid transparent;border-right:5px solid transparent;
+    border-top:6px solid currentColor;margin-left:4px;
+}
 #${VID_IDS.BACKDROP}{
     position:fixed;inset:0;z-index:2200;
     background:rgba(0,0,0,0.55);
@@ -292,24 +313,19 @@
     animation:yt-dl-rot .7s linear infinite;
 }
 @keyframes yt-dl-rot{to{transform:rotate(360deg);}}
-.yt-dl-loading{background:#d97706 !important;color:#fff !important;border-color:transparent !important;}
-.yt-dl-done   {background:#16a34a !important;color:#fff !important;border-color:transparent !important;}
-.yt-dl-loading .ytSpecButtonShapeNextButtonTextContent,
-.yt-dl-done    .ytSpecButtonShapeNextButtonTextContent{color:#fff !important;}
+.yt-dl-loading{background:#d97706 !important;color:#fff !important;}
+.yt-dl-done   {background:#16a34a !important;color:#fff !important;}
             `;
             document.head.appendChild(s);
         }
 
-        // ══════════════════════════════════════════════════
-        // SVG Icons
-        // ══════════════════════════════════════════════════
-        function makeDownloadSvg() {
+        function makeSvgIcon() {
             const NS = 'http://www.w3.org/2000/svg';
             const svg = document.createElementNS(NS, 'svg');
-            svg.setAttribute('height', '24');
             svg.setAttribute('viewBox', '0 0 24 24');
-            svg.setAttribute('width', '24');
-            svg.style.cssText = 'pointer-events:none;display:inherit;width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;';
+            svg.setAttribute('width', '16');
+            svg.setAttribute('height', '16');
+            svg.style.cssText = 'flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;';
             ['M12 4v12', 'M8 12l4 4 4-4', 'M4 18h16'].forEach(d => {
                 const p = document.createElementNS(NS, 'path');
                 p.setAttribute('d', d);
@@ -318,108 +334,42 @@
             return svg;
         }
 
-        function makeArrowSvg() {
-            const NS = 'http://www.w3.org/2000/svg';
-            const svg = document.createElementNS(NS, 'svg');
-            svg.setAttribute('height', '24');
-            svg.setAttribute('viewBox', '0 0 24 24');
-            svg.setAttribute('width', '24');
-            svg.style.cssText = 'pointer-events:none;display:inherit;width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;';
-            const p = document.createElementNS(NS, 'path');
-            p.setAttribute('d', 'M6 9l6 6 6-6');
-            svg.appendChild(p);
-            return svg;
-        }
-
-        // ══════════════════════════════════════════════════
-        // createYtButton — يبني زر بستايل يوتيوب
-        // ══════════════════════════════════════════════════
-        function createYtButton(text, iconSvg, id) {
-            const wrapper = document.createElement('yt-button-view-model');
-            wrapper.className = 'ytd-menu-renderer';
-
-            const buttonViewModel = document.createElement('button-view-model');
-            buttonViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer';
-
-            const btn = document.createElement('button');
-            btn.id = id;
-            btn.className = 'ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment';
-            btn.setAttribute('aria-label', text);
-            btn.setAttribute('aria-disabled', 'false');
-
-            const iconContainer = document.createElement('div');
-            iconContainer.className = 'ytSpecButtonShapeNextIcon ytSpecButtonShapeNextElevatedContent';
-            iconContainer.setAttribute('aria-hidden', 'true');
-
-            const span1 = document.createElement('span');
-            span1.className = 'ytIconWrapperHost';
-            span1.style.cssText = 'width:24px;height:24px;';
-
-            const span2 = document.createElement('span');
-            span2.className = 'yt-icon-shape ytSpecIconShapeHost';
-
-            const iconDiv = document.createElement('div');
-            iconDiv.style.cssText = 'width:100%;height:100%;display:block;fill:currentcolor;';
-            iconDiv.appendChild(iconSvg);
-            span2.appendChild(iconDiv);
-            span1.appendChild(span2);
-            iconContainer.appendChild(span1);
-            btn.appendChild(iconContainer);
-
-            const textDiv = document.createElement('div');
-            textDiv.className = 'ytSpecButtonShapeNextButtonTextContent ytSpecButtonShapeNextElevatedContent';
-            textDiv.textContent = text;
-            btn.appendChild(textDiv);
-
-            const feedbackShape = document.createElement('yt-touch-feedback-shape');
-            feedbackShape.setAttribute('aria-hidden', 'true');
-            feedbackShape.className = 'ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse';
-            const strokeDiv = document.createElement('div');
-            strokeDiv.className = 'ytSpecTouchFeedbackShapeStroke';
-            const fillDiv = document.createElement('div');
-            fillDiv.className = 'ytSpecTouchFeedbackShapeFill';
-            feedbackShape.appendChild(strokeDiv);
-            feedbackShape.appendChild(fillDiv);
-            btn.appendChild(feedbackShape);
-
-            const lightShape = document.createElement('yt-light-shape');
-            lightShape.setAttribute('aria-hidden', 'true');
-            lightShape.className = 'contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal';
-            lightShape.style.cssText = '--yt-light-wash-opacity:0;--yt-light-wash-x:0px;--yt-light-wash-y:0px;--yt-light-wash-size:0px;';
-            const washLight = document.createElement('div');
-            washLight.className = 'contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal';
-            lightShape.appendChild(washLight);
-            btn.appendChild(lightShape);
-
-            buttonViewModel.appendChild(btn);
-            wrapper.appendChild(buttonViewModel);
-
-            return { btn, wrapper };
-        }
-
         function findContainer() {
             if (isWatch())  return document.querySelector('#top-level-buttons-computed');
             if (isShorts()) return document.querySelector('#end');
             return null;
         }
 
-        // ══════════════════════════════════════════════════
-        // buildVidUI — أزرار بستايل يوتيوب
-        // ══════════════════════════════════════════════════
         function buildVidUI(container) {
             if (document.getElementById(VID_IDS.WRAPPER)) return;
             injectVidStyle();
 
-            const fmtObj = createYtButton('Select Format', makeArrowSvg(),    VID_IDS.FMT_BTN);
-            const dlObj  = createYtButton('Download',      makeDownloadSvg(), VID_IDS.DL_BTN);
+            const fmtLabel = document.createElement('span');
+            fmtLabel.textContent = 'Select Format';
+            const arr = document.createElement('span');
+            arr.className = 'arr';
 
-            fmtObj.btn.addEventListener('click', onFmtClick);
-            dlObj.btn.addEventListener('click',  onDlClick);
+            const fmtBtn = document.createElement('button');
+            fmtBtn.id = VID_IDS.FMT_BTN;
+            fmtBtn.className = 'yt-dl-btn';
+            fmtBtn.appendChild(fmtLabel);
+            fmtBtn.appendChild(arr);
+            fmtBtn.addEventListener('click', onFmtClick);
+
+            const dlLabel = document.createElement('span');
+            dlLabel.textContent = 'Download';
+
+            const dlBtn = document.createElement('button');
+            dlBtn.id = VID_IDS.DL_BTN;
+            dlBtn.className = 'yt-dl-btn';
+            dlBtn.appendChild(makeSvgIcon());
+            dlBtn.appendChild(dlLabel);
+            dlBtn.addEventListener('click', onDlClick);
 
             const wrapper = document.createElement('div');
             wrapper.id = VID_IDS.WRAPPER;
-            wrapper.appendChild(fmtObj.wrapper);
-            wrapper.appendChild(dlObj.wrapper);
+            wrapper.appendChild(fmtBtn);
+            wrapper.appendChild(dlBtn);
 
             const like = container.querySelector('#segmented-like-button');
             if (like) like.after(wrapper);
@@ -435,33 +385,17 @@
             selectedFmt = null;
         }
 
-        // ══════════════════════════════════════════════════
-        // syncVidDisabled — تحكم دقيق بالأزرار
-        // ══════════════════════════════════════════════════
         function syncVidDisabled() {
             const off = !(isWatch() || isShorts()) || isLive();
             [VID_IDS.FMT_BTN, VID_IDS.DL_BTN].forEach(id => {
                 const b = document.getElementById(id);
-                if (b && !b.dataset.loading) {
-                    b.disabled = off;
-                    if (off) {
-                        b.setAttribute('aria-disabled', 'true');
-                        b.style.opacity = '0.5';
-                        b.style.pointerEvents = 'none';
-                    } else {
-                        b.setAttribute('aria-disabled', 'false');
-                        b.style.opacity = '1';
-                        b.style.pointerEvents = 'auto';
-                    }
-                }
+                if (b && !b.dataset.loading) b.disabled = off;
             });
             const vid = getVideoId();
             if (vid && vid !== cache.videoId) {
                 cache = { videoId: null, groups: null, title: null };
                 selectedFmt = null;
-                const lbl = document.querySelector(
-                    `#${VID_IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`
-                );
+                const lbl = document.querySelector(`#${VID_IDS.FMT_BTN} span`);
                 if (lbl) lbl.textContent = 'Select Format';
             }
         }
@@ -504,6 +438,7 @@
                     if (!p) return;
                     while (p.children.length > 1) p.removeChild(p.lastChild);
                     if (err) {
+                        // ✅ رسالة الخطأ من الكود الأصلي — تعرض النص الفعلي للخطأ
                         const msg = document.createElement('div');
                         msg.style.cssText = 'padding:20px;font-size:13px;text-align:center;color:#f87171;';
                         msg.textContent = '⚠️ ' + err;
@@ -542,9 +477,7 @@
                     btn.textContent = fmt.label;
                     btn.addEventListener('click', () => {
                         selectedFmt = fmt;
-                        const lbl = document.querySelector(
-                            `#${VID_IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`
-                        );
+                        const lbl = document.querySelector(`#${VID_IDS.FMT_BTN} span`);
                         if (lbl) lbl.textContent = fmt.label;
                         closePopup();
                     });
@@ -573,8 +506,8 @@
             const url = getVideoUrl();
             if (!url) return;
 
-            const dlLabel = dlBtn.querySelector('.ytSpecButtonShapeNextButtonTextContent');
-            const icon    = dlBtn.querySelector('.ytSpecButtonShapeNextIcon');
+            const dlLabel = dlBtn.querySelector('span');
+            const icon    = dlBtn.querySelector('svg');
 
             const setLoading = txt => {
                 dlBtn.dataset.loading = '1';
@@ -601,6 +534,7 @@
                 setTimeout(resetBtn, 3000);
             };
 
+            // ✅ إصلاح #2: استخدام buildFileName لبناء اسم ملف نظيف
             const rawTitle = cache.title ||
                 (document.title || 'video')
                     .replace(/\s*[-–|]\s*YouTube\s*$/i, '').trim();
