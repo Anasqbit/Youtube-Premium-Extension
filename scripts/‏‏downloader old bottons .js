@@ -151,6 +151,7 @@
                 .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
                 .replace(/:\s*b\b/g,  ':"mp4"')
                 .replace(/:\s*h\b/g,  ':"m4a"')
+				.replace(/:\s*d\b/g,  ':"mp4"')    // Fixed
                 .replace(/:\s*i\b/g,  ':"mp4a"')
                 .replace(/:\s*f\b/g,  ':"av01"')
                 .replace(/:\s*g\b/g,  ':"avc1"')
@@ -171,7 +172,7 @@
                     const clean = res.responseText.replace(/\\u002F/g, '/');
 
                     let title = '';
-                    const tm = clean.match(/"title":"((?:[^"\\]|\\.)*)"/);
+                    const tm = clean.match(/title\s*:\s*"((?:[^"\\]|\\.)*)"/); //Fixed
                     if (tm) {
                         title = tm[1]
                             .replace(/\\u([\dA-Fa-f]{4})/g,
