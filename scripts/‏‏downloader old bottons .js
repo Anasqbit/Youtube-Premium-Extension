@@ -147,17 +147,18 @@
 
         // ✅ إصلاح #1: fixJson الصحيحة من الكود الأصلي — كل حرف بـ replace منفصل
         function fixJson(str) {
-            return str
-                .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
-                .replace(/:\s*b\b/g,  ':"mp4"')
-                .replace(/:\s*h\b/g,  ':"m4a"')
-				.replace(/:\s*d\b/g,  ':"mp4"')    // Fixed
-                .replace(/:\s*i\b/g,  ':"mp4a"')
-                .replace(/:\s*f\b/g,  ':"av01"')
-                .replace(/:\s*g\b/g,  ':"avc1"')
-                .replace(/void\s+0/g, 'null')
-                .replace(/:\s*c\b/g,  ':false')
-                .replace(/:\s*a\b/g,  ':true');
+                return str
+                     .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
+                     .replace(/:\s*b\b/g,  ':"mp4"')
+                     .replace(/:\s*h\b/g,  ':"mp4a"')
+                     .replace(/:\s*d\b/g,  ':"mp4"')
+                     .replace(/:\s*i\b/g,  ':"mp4a"')
+                     .replace(/:\s*f\b/g,  ':"avc1"')
+                     .replace(/:\s*g\b/g,  ':"m4a"')
+                     .replace(/:\s*e\b/g,  ':"mp4"')
+                     .replace(/void\s+0/g, 'null')
+                     .replace(/:\s*c\b/g,  ':false')
+                     .replace(/:\s*a\b/g,  ':true');
         }
 
         // ✅ إصلاح #4: أضفنا التحقق من عدم وجود formats قبل إرسال النتيجة
