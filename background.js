@@ -14,7 +14,8 @@ async function handleFetch(request, sendResponse) {
     try {
         var fetchOptions = {
             method: options.method || "GET",
-            headers: options.headers || {}
+            headers: options.headers || {},
+            credentials: options.credentials || "same-origin"
         };
         if (options.body) {
             fetchOptions.body = options.body;

@@ -20,8 +20,9 @@
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://returnyoutubedislikeapi.com/*",
-    "*://*.any4k.com/*",
-    "*://any4k.com/*",
+    "*://snapscooper.com/*",
+    "*://*.snapscooper.com/*",
+    "*://*.smvd.xyz/*",
     "*://www.myinstants.com/*"
   ],
   "content_scripts": [

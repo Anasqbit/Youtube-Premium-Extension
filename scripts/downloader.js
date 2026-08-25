@@ -12,6 +12,7 @@
                 const fetchOptions = {
                     method: opts.method || 'GET',
                     headers: opts.headers || {},
+                    credentials: 'include',
                 };
                 if (opts.data) fetchOptions.body = opts.data;
 
@@ -66,11 +67,7 @@
             });
         }
 
-        const ANY4K_PAGE   = 'https://any4k.com/download/youtube/';
-        const API_DOWNLOAD = 'https://api.any4k.com/v1/dlp/download';
-        const API_PROGRESS = 'https://api.any4k.com/v1/dlp/download_progress';
-        const API_FILE     = 'https://api.any4k.com/v1/file/o';
-        const DEVICE_ID    = '00000000000000000000000000000000';
+        const API_INFO = 'https://snapscooper.com/api/tool/post-info';
 
         const VID_IDS = {
             WRAPPER  : 'yt-dl-wrapper',
@@ -84,11 +81,7 @@
         let cache = { videoId: null, groups: null, title: null };
         let selectedFmt = null;
 
-        const commonFields = () => ({
-            lang: 'en', country: 'US', platform: 'Web',
-            sysVer: '1.0', appVer: '1.0',
-            bundleId: 'OK', deviceId: DEVICE_ID,
-        });
+        
 
         const isWatch  = () => location.pathname === '/watch';
         const isShorts = () => location.pathname.startsWith('/shorts/');
@@ -115,7 +108,7 @@
         function buildFileName(rawTitle, fmt) {
             let title = rawTitle || 'video';
             title = title.replace(/\s*[-–|]\s*YouTube\s*$/i, '').trim();
-            title = title.replace(/any4k\.com[-\s]*/gi, '').trim();
+            title = title.replace(/snapscooper\.com[-\s]*/gi, '').trim();
             title = title.replace(/_/g, ' ');
             title = title.replace(/\s{2,}/g, ' ').trim();
             title = title.replace(/[\\/:*?"<>|]/g, '').trim();
@@ -137,87 +130,139 @@
             return mb >= 100 ? `${Math.round(mb)} MB` : `${mb.toFixed(2)} MB`;
         }
 
-        function formatHz(asr) {
-            if (!asr) return '';
-            return asr >= 1000 ? `${(asr / 1000).toFixed(0)}kHz` : `${asr}Hz`;
-        }
-
-        function fixJson(str) {
-                return str
-                     .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
-                     .replace(/:\s*b\b/g,  ':"mp4"')
-                     .replace(/:\s*h\b/g,  ':"mp4a"')
-                     .replace(/:\s*d\b/g,  ':"mp4"')
-                     .replace(/:\s*i\b/g,  ':"mp4a"')
-                     .replace(/:\s*f\b/g,  ':"avc1"')
-                     .replace(/:\s*g\b/g,  ':"m4a"')
-                     .replace(/:\s*e\b/g,  ':"mp4"')
-                     .replace(/void\s+0/g, 'null')
-                     .replace(/:\s*c\b/g,  ':false')
-                     .replace(/:\s*a\b/g,  ':true');
-        }
+        
 
         function scrapeFormats(videoId, cb) {
-            GM_xmlhttpRequest({
-                method  : 'GET',
-                url     : `${ANY4K_PAGE}${videoId}`,
-                headers : { 'Accept': 'text/html,*/*' },
-                timeout : 25000,
-                onload(res) {
-                    if (res.status !== 200) { cb(`HTTP ${res.status}`); return; }
-                    const clean = res.responseText.replace(/\\u002F/g, '/');
+            const url = getVideoUrl() ||
+                (videoId ? `https://www.youtube.com/watch?v=${videoId}` : null);
+            if (!url) { cb('No video URL'); return; }
 
-                    let title = '';
-                    const tm = clean.match(/title\s*:\s*"((?:[^"\\]|\\.)*)"/);  //fixed
-                    if (tm) {
-                        title = tm[1]
-                            .replace(/\\u([\dA-Fa-f]{4})/g,
-                                (_, h) => String.fromCharCode(parseInt(h, 16)))
-                            .replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            GM_xmlhttpRequest({
+                method  : 'POST',
+                url     : API_INFO,
+                headers : {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                data    : JSON.stringify({ toolId: 'youtube', url, highres: true }),
+                timeout : 25_000,
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        cb(`HTTP ${res.status}`);
+                        return;
                     }
 
-                    const dlMatch    = clean.match(/download:(\[.*?\]),raw_video/);
-                    const audioMatch = clean.match(/raw_audio:(\[.*?\])\}/);
+                    let json;
+                    try { json = JSON.parse(res.responseText); }
+                    catch { cb('Bad server response'); return; }
 
-                    if (!dlMatch && !audioMatch) { cb('No formats found'); return; }
+                    const content = Array.isArray(json?.contents) ? json.contents[0] : null;
+                    if (!content) { cb('No formats found'); return; }
 
+                    const extensionFor = (mime, fallback) => {
+                        const value = String(mime || '').toLowerCase();
+                        if (value.includes('webm')) return 'webm';
+                        if (value.includes('mp4')) return 'mp4';
+                        return fallback;
+                    };
+                    const withSize = (label, bytes) => {
+                        const size = formatSize(bytes);
+                        return size ? `${label} — ${size}` : label;
+                    };
+                    const capitalizeFirst = value => {
+                        const text = String(value || '').trim();
+                        return text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : '';
+                    };
+                    const formatLanguage = value => String(value || '').trim()
+                        .split(/([\s_-]+)/)
+                        .filter(Boolean)
+                        .map(part => {
+                            if (/^[A-Za-z]{2}$/.test(part)) return part.toUpperCase();
+                            if (/^[A-Za-z]/.test(part)) return capitalizeFirst(part);
+                            return part;
+                        })
+                        .join('');
+                    const formatAudioLabel = (rawLabel, ext) => {
+                        const raw = String(rawLabel || '').trim();
+                        const match = raw.match(/^([A-Za-z][A-Za-z_-]*)\s+[\d.]+\s*kBps\b(?:\s+(.+?))?$/i);
+                        const quality = capitalizeFirst(match?.[1] || raw.split(/\s+/)[0] || 'Audio');
+                        const language = formatLanguage(match?.[2] || '');
+                        const format = [String(ext || 'm4a').toUpperCase(), language]
+                            .filter(Boolean)
+                            .join(' ');
+                        return [quality, format].filter(Boolean).join(' - ');
+                    };
+                    const audioSortData = (rawLabel, ext) => {
+                        const raw = String(rawLabel || '').trim();
+                        const quality = raw.match(/^([A-Za-z]+)/)?.[1]?.toLowerCase() || '';
+                        const language = raw.match(/kBps\b\s+(.+)$/i)?.[1]?.trim() || '';
+                        const qualityRank = { ultralow: 1, low: 2, medium: 3, high: 4, original: 5 }[quality] || 0;
+                        const formatRank = String(ext || '').toLowerCase() === 'webm' ? 1 : 2;
+                        return {
+                            isOriginal: /(?:^|[\s_-])original(?:$|[\s_-])/i.test(raw),
+                            qualityRank,
+                            languageKey: language.replace(/[_-]+/g, ' ').toLowerCase(),
+                            formatRank,
+                        };
+                    };
                     const groups = [];
 
-                    if (audioMatch) {
-                        try {
-                            const list = JSON.parse(fixJson(audioMatch[1]));
-                            if (list.length) {
-                                groups.push({
-                                    label: 'Audio',
-                                    items: list.map(f => ({
-                                        id   : f.id,
-                                        label: `${(f.ext || 'm4a').toUpperCase()} ${formatHz(f.asr)} — ${formatSize(f.filesize)}`,
-                                        ext  : f.ext || 'm4a',
-                                    }))
-                                });
-                            }
-                        } catch (e) { console.warn('[YTDl] audio parse:', e); }
-                    }
+                    const audioItems = (Array.isArray(content.audios) ? content.audios : [])
+                        .filter(f => f?.url)
+                        .map(f => {
+                            const ext = extensionFor(f.mime_type, 'm4a');
+                            const sortData = audioSortData(f.label, ext);
+                            const audioLabel = formatAudioLabel(f.label, ext);
+                            return {
+                                id    : f.url,
+                                url   : f.url,
+                                label : withSize(audioLabel, f.content_length),
+                                buttonLabel : audioLabel,
+                                ext,
+                                isRender : false,
+                                _isOriginal : sortData.isOriginal,
+                                _qualityRank : sortData.qualityRank,
+                                _languageKey : sortData.languageKey,
+                                _formatRank : sortData.formatRank,
+                            };
+                        })
+                        .sort((a, b) =>
+                            Number(b._isOriginal) - Number(a._isOriginal) ||
+                            b._qualityRank - a._qualityRank ||
+                            (a._languageKey < b._languageKey ? -1 : a._languageKey > b._languageKey ? 1 : 0) ||
+                            a._formatRank - b._formatRank,
+                        )
+                        .map(({ _isOriginal, _qualityRank, _languageKey, _formatRank, ...format }) => format);
+                    if (audioItems.length) groups.push({ label: 'Audio', items: audioItems });
 
-                    if (dlMatch) {
-                        try {
-                            const list = JSON.parse(fixJson(dlMatch[1]));
-                            if (list.length) {
-                                groups.push({
-                                    label: 'Video + Audio',
-                                    items: list.map(f => ({
-                                        id   : f.id,
-                                        label: `MP4 ${f.res_text || ''} — ${formatSize(f.filesize)}`,
-                                        ext  : 'mp4',
-                                    }))
-                                });
-                            }
-                        } catch (e) { console.warn('[YTDl] video parse:', e); }
-                    }
+                    const videoItems = (Array.isArray(content.videos) ? content.videos : [])
+                        .filter(f => f?.url && f?.has_audio !== false)
+                        .map(f => ({
+                            id    : f.url,
+                            url   : f.url,
+                            label : withSize(f.label || 'Video', f.content_length),
+                            ext   : extensionFor(f.mime_type, 'mp4'),
+                            isRender : f.is_render === true,
+                        }));
+                    if (videoItems.length) groups.push({ label: 'Video + Audio', items: videoItems });
+
+                    const videoOnlyItems = (Array.isArray(content.videos) ? content.videos : [])
+                        .filter(f => f?.url && f?.has_audio === false)
+                        .map(f => ({
+                            id    : f.url,
+                            url   : f.url,
+                            label : withSize(`${f.label || 'Video'} (video only)`, f.content_length),
+                            ext   : extensionFor(f.mime_type, 'mp4'),
+                            isRender : f.is_render === true,
+                        }));
+                    if (videoOnlyItems.length) groups.push({ label: 'Video Only', items: videoOnlyItems });
 
                     if (!groups.length) { cb('Could not parse formats'); return; }
-
-                    cache = { videoId, groups, title };
+                    cache = {
+                        videoId,
+                        groups,
+                        title: typeof json?.title === 'string' ? json.title : '',
+                    };
                     cb(null, groups);
                 },
                 onerror  () { cb('Network error'); },
@@ -270,7 +315,21 @@
     background:none;border:none;cursor:pointer;color:${grpCl};
     font-size:18px;line-height:1;padding:0 4px;border-radius:4px;transition:color .15s;
 }
-.yt-dl-popup-close:hover{color:${color};}
+        .yt-dl-popup-close:hover{color:${color};}
+.yt-dl-tabs{
+    display:flex;gap:4px;padding:4px;margin:0 0 4px;
+    border-bottom:1px solid ${popBd};
+}
+.yt-dl-tab{
+    flex:1;border:none;border-radius:7px 7px 0 0;padding:9px 8px;
+    background:transparent;color:${grpCl};cursor:pointer;font-size:12px;font-weight:700;
+    transition:background .12s,color .12s;
+}
+.yt-dl-tab:hover{background:${hover};color:${color};}
+.yt-dl-tab.active{background:rgba(62,130,247,.15);color:${dark ? '#60a5fa' : '#1d4ed8'};}
+.yt-dl-tab-panel{display:none;}
+.yt-dl-tab-panel.active{display:block;}
+.yt-dl-empty{padding:24px 12px;text-align:center;font-size:13px;color:${grpCl};}
 .yt-dl-grp{
     font-size:11px;font-weight:700;color:${grpCl};
     text-transform:uppercase;letter-spacing:.5px;padding:10px 8px 4px;user-select:none;
@@ -427,6 +486,7 @@
             if (like) like.after(wrapper);
             else container.appendChild(wrapper);
 
+            setFormatButtonLabel(selectedFmt?.buttonLabel || selectedFmt?.label || 'Select Format');
             syncVidDisabled();
         }
 
@@ -435,6 +495,17 @@
             closePopup();
             cache = { videoId: null, groups: null, title: null };
             selectedFmt = null;
+        }
+
+        function setFormatButtonLabel(label) {
+            const value = label || 'Select Format';
+            const button = document.getElementById(VID_IDS.FMT_BTN);
+            const text = button?.querySelector('.ytSpecButtonShapeNextButtonTextContent');
+            if (text) {
+                text.textContent = value;
+                text.setAttribute('title', value);
+            }
+            if (button) button.setAttribute('aria-label', value);
         }
 
         // ══════════════════════════════════════════════════
@@ -461,10 +532,7 @@
             if (vid && vid !== cache.videoId) {
                 cache = { videoId: null, groups: null, title: null };
                 selectedFmt = null;
-                const lbl = document.querySelector(
-                    `#${VID_IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`
-                );
-                if (lbl) lbl.textContent = 'Select Format';
+                setFormatButtonLabel('Select Format');
             }
         }
 
@@ -532,27 +600,79 @@
         }
 
         function renderFormats(popup, groups) {
-            groups.forEach(({ label, items }) => {
-                const grp = document.createElement('div');
-                grp.className = 'yt-dl-grp';
-                grp.textContent = label;
-                popup.appendChild(grp);
+            const groupsByTab = {
+                video: groups.filter(({ label }) => label !== 'Audio'),
+                audio: groups.filter(({ label }) => label === 'Audio'),
+            };
+            const tabs = document.createElement('div');
+            tabs.className = 'yt-dl-tabs';
+            tabs.setAttribute('role', 'tablist');
 
-                items.forEach(fmt => {
-                    const btn = document.createElement('button');
-                    btn.className = 'yt-dl-opt' + (selectedFmt?.id === fmt.id ? ' active' : '');
-                    btn.textContent = fmt.label;
-                    btn.addEventListener('click', () => {
-                        selectedFmt = fmt;
-                        const lbl = document.querySelector(
-                            `#${VID_IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`
-                        );
-                        if (lbl) lbl.textContent = fmt.label;
-                        closePopup();
+            const panels = {};
+            const tabButtons = {};
+            const renderGroupList = (panel, groupList) => {
+                if (!groupList.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'yt-dl-empty';
+                    empty.textContent = 'No formats available';
+                    panel.appendChild(empty);
+                    return;
+                }
+
+                groupList.forEach(({ label, items }) => {
+                    if (groupList.length > 1) {
+                        const grp = document.createElement('div');
+                        grp.className = 'yt-dl-grp';
+                        grp.textContent = label;
+                        panel.appendChild(grp);
+                    }
+                    items.forEach(fmt => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'yt-dl-opt' + (selectedFmt?.id === fmt.id ? ' active' : '');
+                        btn.textContent = fmt.label;
+                        btn.addEventListener('click', () => {
+                            selectedFmt = fmt;
+                            setFormatButtonLabel(fmt.buttonLabel || fmt.label);
+                            closePopup();
+                        });
+                        panel.appendChild(btn);
                     });
-                    popup.appendChild(btn);
+                });
+            };
+
+            ['audio', 'video'].forEach(type => {
+                const tab = document.createElement('button');
+                tab.type = 'button';
+                tab.className = 'yt-dl-tab';
+                tab.textContent = type === 'video' ? 'Video' : 'Audio';
+                tab.setAttribute('role', 'tab');
+                tab.setAttribute('aria-controls', `yt-dl-${type}-panel`);
+
+                const panel = document.createElement('div');
+                panel.id = `yt-dl-${type}-panel`;
+                panel.className = 'yt-dl-tab-panel';
+                panel.setAttribute('role', 'tabpanel');
+                renderGroupList(panel, groupsByTab[type]);
+
+                tabButtons[type] = tab;
+                panels[type] = panel;
+                tabs.appendChild(tab);
+                popup.appendChild(panel);
+
+                tab.addEventListener('click', () => {
+                    Object.keys(tabButtons).forEach(key => {
+                        const isActive = key === type;
+                        tabButtons[key].classList.toggle('active', isActive);
+                        tabButtons[key].setAttribute('aria-selected', String(isActive));
+                        panels[key].classList.toggle('active', isActive);
+                    });
                 });
             });
+
+            popup.insertBefore(tabs, popup.children[1] || null);
+            const initialTab = groupsByTab.video.length ? 'video' : 'audio';
+            tabButtons[initialTab].click();
         }
 
         function closePopup() {
@@ -610,100 +730,166 @@
             console.log('[YTDl] File name:', fileName);
 
             setLoading('⏳ Starting…');
-            startAny4kDownload(url, dlLabel, setDone, resetBtn);
+
+            if (selectedFmt.isRender) {
+                startRenderedDownload(selectedFmt.url, dlLabel, fileName, setDone, resetBtn);
+                return;
+            }
+
+            try {
+                triggerDirectDownload(selectedFmt.url, fileName);
+                setDone();
+            } catch (e) {
+                console.error('[YTDl] direct download:', e);
+                alert('❌ Download could not be started');
+                resetBtn();
+            }
         }
 
-        function startAny4kDownload(videoUrl, dlLabel, setDone, resetBtn) {
-            GM_xmlhttpRequest({
-                method  : 'POST',
-                url     : API_DOWNLOAD,
-                headers : { 'Content-Type': 'application/json' },
-                data    : JSON.stringify({
-                    url: videoUrl,
-                    format: selectedFmt.id,
-                    ...commonFields()
-                }),
-                timeout : 25000,
-                onload(res) {
-                    let json;
-                    try { json = JSON.parse(res.responseText); }
-                    catch { alert('❌ Bad server response'); resetBtn(); return; }
+        function startRenderedDownload(renderUrl, dlLabel, fileName, setDone, resetBtn) {
+            if (!renderUrl) {
+                alert('❌ Missing render URL');
+                resetBtn();
+                return;
+            }
 
-                    if (json?.err_code !== 0) {
-                        alert(`❌ ${json?.err_msg || 'API error'}`);
-                        resetBtn(); return;
+            dlLabel.textContent = '⏳ Queued…';
+            GM_xmlhttpRequest({
+                method  : 'GET',
+                url     : renderUrl,
+                headers : { 'Accept': 'application/json' },
+                timeout : 30_000,
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        alert(`❌ Render HTTP ${res.status}`);
+                        resetBtn();
+                        return;
                     }
 
-                    const dlId = json.id;
-                    if (!dlId) { alert('❌ No download ID'); resetBtn(); return; }
+                    let job;
+                    try { job = JSON.parse(res.responseText); }
+                    catch {
+                        alert('❌ Bad render response');
+                        resetBtn();
+                        return;
+                    }
 
-                    dlLabel.textContent = '⏳ 0%';
-                    listenSSE(dlId, 0, dlLabel, setDone, resetBtn);
+                    if (job?.status === 'done' && job?.output?.url) {
+                        try {
+                            triggerDirectDownload(job.output.url, fileName);
+                            setDone();
+                        } catch (e) {
+                            console.error('[YTDl] rendered download:', e);
+                            alert('❌ Download could not be started');
+                            resetBtn();
+                        }
+                        return;
+                    }
+
+                    const sseUrl = normalizeSseUrl(job?.sseStatusUrl || job?.statusUrl, job?.jobId);
+                    if (!sseUrl) {
+                        alert(`❌ ${job?.error || 'No render status URL'}`);
+                        resetBtn();
+                        return;
+                    }
+                    listenRenderSSE(sseUrl, dlLabel, fileName, setDone, resetBtn);
                 },
-                onerror  () { alert('❌ Network error'); resetBtn(); },
-                ontimeout() { alert('❌ Timeout');       resetBtn(); },
+                onerror  () { alert('❌ Render network error'); resetBtn(); },
+                ontimeout() { alert('❌ Render timeout');        resetBtn(); },
             });
         }
 
-        function listenSSE(dlId, attempt, dlLabel, setDone, resetBtn) {
-            if (attempt > 8) { alert('❌ Failed after multiple retries.'); resetBtn(); return; }
+        function normalizeSseUrl(url, jobId) {
+            if (!url && jobId) {
+                return `https://render-api-v3-ins1.smvd.xyz/api/v1/render/status/sse/${encodeURIComponent(jobId)}`;
+            }
+            if (!url) return null;
+            const value = String(url).replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:');
+            if (/\/status\/sse\/[^/?#]+$/i.test(value)) return value;
+            const match = value.match(/^(.*\/status)\/([^/?#]+)$/i);
+            if (match) return `${match[1]}/sse/${match[2]}`;
+            return null;
+        }
 
+        function listenRenderSSE(sseUrl, dlLabel, fileName, setDone, resetBtn) {
             let es;
             let finished = false;
+            const guardTimer = setTimeout(() => finish(() => {
+                alert('❌ Render timed out');
+                resetBtn();
+            }), 600_000);
 
             const finish = fn => {
                 if (finished) return;
                 finished = true;
-                try { es?.close(); } catch (e) { }
+                clearTimeout(guardTimer);
+                try { es?.close(); } catch (e) {}
                 fn();
             };
 
+            const fail = message => finish(() => {
+                alert(`❌ ${message}`);
+                resetBtn();
+            });
+
+            const handleMessage = raw => {
+                if (!raw) return;
+                let data;
+                try { data = JSON.parse(raw); }
+                catch { return; }
+
+                const progress = Number(data.progress);
+                if (Number.isFinite(progress)) {
+                    dlLabel.textContent = `⏳ Rendering ${Math.floor(progress)}%`;
+                } else if (data.status === 'queued' || data.status === 'processing') {
+                    dlLabel.textContent = '⏳ Rendering…';
+                }
+
+                if (data.status === 'done') {
+                    const outputUrl = data.output?.url;
+                    if (!outputUrl) { fail(data.error || 'Render finished without a file'); return; }
+                    finish(() => {
+                        try {
+                            triggerDirectDownload(outputUrl, fileName);
+                            setDone();
+                        } catch (e) {
+                            console.error('[YTDl] rendered output:', e);
+                            alert('❌ Download could not be started');
+                            resetBtn();
+                        }
+                    });
+                } else if (data.status === 'error' || data.error) {
+                    fail(data.error || 'Render failed');
+                }
+            };
+
             try {
-                es = new EventSource(`${API_PROGRESS}?id=${dlId}`);
+                es = new EventSource(sseUrl);
             } catch (e) {
-                alert('❌ EventSource not supported');
-                resetBtn(); return;
+                console.warn('[YTDl] EventSource not available for render');
+                alert('❌ Render status is not supported');
+                resetBtn();
+                clearTimeout(guardTimer);
+                return;
             }
 
-            es.addEventListener('progress', e => {
-                const n = parseFloat(e.data);
-                if (!isNaN(n)) dlLabel.textContent = `⏳ ${Math.floor(n)}%`;
-            });
-
-            es.addEventListener('done', () => {
-                finish(() => {
-                    triggerIframeDownload(dlId);
-                    setDone();
-                });
-            });
-
+            es.onmessage = e => handleMessage(e.data);
+            es.addEventListener('progress', e => handleMessage(e.data));
+            es.addEventListener('done', e => handleMessage(e.data));
             es.addEventListener('error', e => {
-                const data = e.data || '';
-                if (data.includes('High demand')) {
-                    finish(() => {
-                        dlLabel.textContent = `⏳ Queue (${attempt + 1})…`;
-                        setTimeout(() => listenSSE(dlId, attempt + 1, dlLabel, setDone, resetBtn), 40000);
-                    });
-                    return;
-                }
-                if (data) { finish(() => { alert(`❌ ${data}`); resetBtn(); }); }
+                if (e.data) handleMessage(e.data);
+                else if (es.readyState === EventSource.CLOSED) fail('Render status connection closed');
             });
-
-            const guard = setTimeout(() => {
-                finish(() => setTimeout(() => listenSSE(dlId, attempt + 1, dlLabel, setDone, resetBtn), 2000));
-            }, 300000);
-
-            es.addEventListener('done',  () => clearTimeout(guard));
-            es.addEventListener('error', () => clearTimeout(guard));
         }
 
-        function triggerIframeDownload(dlId) {
-            const fileUrl = `${API_FILE}?i=${dlId}`;
-            const iframe  = document.createElement('iframe');
+        function triggerDirectDownload(fileUrl, fileName) {
+            if (!fileUrl) throw new Error('Missing download URL');
+            const iframe = document.createElement('iframe');
             iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:fixed;';
+            iframe.title = fileName || 'download';
             iframe.src = fileUrl;
             document.body.appendChild(iframe);
-            setTimeout(() => iframe.remove(), 60000);
+            setTimeout(() => iframe.remove(), 60_000);
         }
 
         function checkAndInject() {
